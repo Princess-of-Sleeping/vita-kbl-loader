@@ -42,10 +42,10 @@ Also, if you accidentally execute broken code and get stuck with a software rebo
 
 [Resume](https://wiki.henkaku.xyz/vita/Suspend#Rebooting_with_Patches)
 
-Check out the original repository for more details.
+Check out the [original repository](https://github.com/xerpi/vita-baremetal-loader) for more details.
 
 # Credits
 
 Thanks to everybody who contributes to [wiki.henkaku.xyz](https://wiki.henkaku.xyz/) and helps reverse engineering the PSVita OS.
 
-Also xerpi who created the original vita-baremetal-loader.
+Also xerpi who created the original [vita-baremetal-loader](https://github.com/xerpi/vita-baremetal-loader).
