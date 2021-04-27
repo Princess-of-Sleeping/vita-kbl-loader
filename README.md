@@ -1,6 +1,6 @@
 # vita-kbl-loader
 
-PSP2 kbl loader(Non-secure).
+PSP2 kbl loader (Non-secure).
 
 # What is this plugin
 
@@ -12,7 +12,7 @@ A plugin that executes nskbl saved on the memory card and reboot the software.
 
 `host0:nskbl.bin` for devkit
 
-`sd0:nskbl.bin` for advanced user(If installed the Manufacturing mode)
+`sd0:nskbl.bin` for advanced user (If installed the Manufacturing mode)
 
 `ux0:data/nskbl.bin` for end user
 
@@ -20,7 +20,7 @@ A plugin that executes nskbl saved on the memory card and reboot the software.
 
 `host0:enso_second.bin` for devkit
 
-`sd0:enso_second.bin` for advanced user(If installed the Manufacturing mode)
+`sd0:enso_second.bin` for advanced user (If installed the Manufacturing mode)
 
 `ux0:data/enso_second.bin` for end user
 
