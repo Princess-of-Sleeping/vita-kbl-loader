@@ -71,6 +71,15 @@ unsigned int payload_size;
 uintptr_t sysroot_buffer_paddr;
 void *lvl1_pt_va;
 
+void (* sceKernelCpuDcacheWritebackInvalidateAll)(void);
+void (* sceKernelCpuIcacheInvalidateAll)(void);
+int (* sceKernelCpuDcacheCleanInvalidateMVAC)(void *a1);
+void (* sceKernelCpuIcacheInvalidateRange)(const void *ptr, SceSize len);
+
+int module_get_offset(SceUID pid, SceUID modid, int segidx, uint32_t offset, uintptr_t *dst);
+int module_get_export_func(SceUID pid, const char *modname, uint32_t lib_nid, uint32_t func_nid, uintptr_t *func);
+#define GetExport(modname, lib_nid, func_nid, func) module_get_export_func(0x10005, modname, lib_nid, func_nid, (uintptr_t *)func)
+
 static void setup_payload(void)
 {
 	memset(&resume_ctx, 0, sizeof(resume_ctx));
@@ -115,8 +124,8 @@ static int ksceSysconResetDevice_hook_func(int type, int mode)
 
 	// LOG("Resetting the device!\n");
 
-	ksceKernelCpuDcacheWritebackInvalidateAll();
-	ksceKernelCpuIcacheInvalidateAll();
+	sceKernelCpuDcacheWritebackInvalidateAll();
+	sceKernelCpuIcacheInvalidateAll();
 
 	return TAI_CONTINUE(int, SceSyscon_ksceSysconResetDevice_ref, type, mode);
 }
@@ -162,10 +171,6 @@ void *pa2va(unsigned int pa){
  */
 int (* mapping_vaddr_by_paddr)(void *ttbr, int memtype, int domain, const void *vaddr, SceSize size, unsigned int paddr) = NULL;
 
-int ksceKernelCpuDcacheCleanInvalidateMVAC(void *a1);
-
-int module_get_offset(SceUID pid, SceUID modid, int segidx, uint32_t offset, uintptr_t *dst);
-
 unsigned int *pTTBR0, *pTTBR1;
 
 int map_vaddr(int memtype, int domain, uintptr_t vaddr, SceSize size, uintptr_t paddr)
@@ -179,8 +184,7 @@ int map_vaddr(int memtype, int domain, uintptr_t vaddr, SceSize size, uintptr_t 
 	}
 
 	mapping_vaddr_by_paddr(pTTBR, memtype, domain, (const void *)vaddr, size, paddr);
-
-	ksceKernelCpuDcacheCleanInvalidateMVAC(&pTTBR[(vaddr >> 20) & 0xFFF]);
+	sceKernelCpuDcacheCleanInvalidateMVAC(&pTTBR[(vaddr >> 20) & 0xFFF]);
 
 	return 0;
 }
@@ -194,7 +198,18 @@ int map_vaddr_init(void)
 		return -1;
 	}
 
-	module_get_offset(0x10005, tai_info.modid, 0, 0x2364C | 1, (uintptr_t *)&mapping_vaddr_by_paddr);
+	switch(tai_info.module_nid){
+	case 0x3380B323: // 3.60
+		module_get_offset(0x10005, tai_info.modid, 0, 0x2364C | 1, (uintptr_t *)&mapping_vaddr_by_paddr);
+		break;
+	case 0x4DC73B57: // 3.65
+		module_get_offset(0x10005, tai_info.modid, 0, 0x23618 | 1, (uintptr_t *)&mapping_vaddr_by_paddr);
+		break;
+	default:
+		ksceDebugPrintf("Not supported SceSysmem version\n");
+		return -1;
+		break;
+	}
 
 	unsigned int ttbr0, ttbr1;
 
@@ -258,7 +273,6 @@ void dipsw_set(void *pDipsw, SceUInt8 bit)
 	// ksceDebugPrintf("0x%X -> byte:0x%X/bit:0x%X\n", bit, (bit >> 5) << 2, 1 << (bit & 0x1F));
 }
 
-
 typedef struct SceKernelMemBlockInfoExDetails {
     uint32_t type;
     SceUID memblk_uid;
@@ -283,12 +297,6 @@ typedef struct SceKernelMemBlockInfoEx { // size is 0xAC on FW 0.990, 0xB8 on FW
 } SceKernelMemBlockInfoEx;
 
 int ksceKernelMemBlockGetInfoEx(SceUID uid, SceKernelMemBlockInfoEx *info);
-
-
-
-int module_get_export_func(SceUID pid, const char *modname, uint32_t lib_nid, uint32_t func_nid, uintptr_t *func);
-
-#define GetExport(modname, lib_nid, func_nid, func) module_get_export_func(0x10005, modname, lib_nid, func_nid, (uintptr_t *)func)
 
 int update_enso_flag(void *sysroot)
 {
@@ -338,7 +346,29 @@ int loader_main(void)
 	void *sysroot_buffer_vaddr;
 	struct sysroot_buffer *sysroot;
 
-	map_vaddr_init();
+	ret = map_vaddr_init();
+	if(ret < 0){
+		ksceDebugPrintf("%s:map_vaddr_init failed\n", __FUNCTION__);
+		return ret;
+	}
+
+	if(GetExport("SceSysmem", 0x54BF2BAB, 0x76DAB4D0, &sceKernelCpuDcacheWritebackInvalidateAll) < 0)
+	if(GetExport("SceSysmem", 0xA5195D20, 0x4BBA5C82, &sceKernelCpuDcacheWritebackInvalidateAll) < 0)
+		return -1;
+
+	if(GetExport("SceSysmem", 0x54BF2BAB, 0x264DA250, &sceKernelCpuIcacheInvalidateAll) < 0)
+	if(GetExport("SceSysmem", 0xA5195D20, 0x803C84BF, &sceKernelCpuIcacheInvalidateAll) < 0)
+		return -1;
+
+	if(GetExport("SceSysmem", 0x54BF2BAB, 0xC8E8C9E9, &sceKernelCpuDcacheCleanInvalidateMVAC) < 0)
+	if(GetExport("SceSysmem", 0xA5195D20, 0x597426D2, &sceKernelCpuDcacheCleanInvalidateMVAC) < 0)
+		return -1;
+
+	if(GetExport("SceSysmem", 0x54BF2BAB, 0xF4C7F578, &sceKernelCpuIcacheInvalidateRange) < 0)
+	if(GetExport("SceSysmem", 0xA5195D20, 0x2E637B1D, &sceKernelCpuIcacheInvalidateRange) < 0)
+		return -1;
+
+	ksceDebugPrintf("Function init ok\n");
 
 	// LOG("Baremetal loader by xerpi\n");
 
@@ -349,7 +379,7 @@ int loader_main(void)
 
 	if(ksceSblAimgrIsTool() != 0){
 		void *pDipsw = (void *)(((uintptr_t)sysroot) + 0x40);
-		dipsw_set(pDipsw, 0xD7);
+		dipsw_set(pDipsw, 0xD7); // Allow remote
 		*(int *)(pDipsw + 0xC) = 0; // Disable ASLR
 
 		char *pQaf = (void *)(((uintptr_t)sysroot) + 0x20);
@@ -398,11 +428,11 @@ int loader_main(void)
 	if(1){
 		ksceDebugPrintf("NS KBL loading\n");
 
-		fd = ksceIoOpen("host0:nskbl.bin", 1, 0);
+		fd = ksceIoOpen("host0:data/kbl-loader/nskbl.bin", 1, 0);
 		if(fd < 0)
-			fd = ksceIoOpen("sd0:nskbl.bin", 1, 0);
+			fd = ksceIoOpen("sd0:data/kbl-loader/nskbl.bin", 1, 0);
 		if(fd < 0)
-			fd = ksceIoOpen("ux0:data/nskbl.bin", 1, 0);
+			fd = ksceIoOpen("ux0:data/kbl-loader/nskbl.bin", 1, 0);
 
 		if(fd >= 0){
 			ksceIoLseek(fd, 0LL, SCE_SEEK_SET);
@@ -411,7 +441,7 @@ int loader_main(void)
 			ksceDebugPrintf("NS KBL loading OK\n");
 		}else{
 			ksceDebugPrintf("NS KBL loading Failed\n");
-			ksceDebugPrintf("-> Setting opcode to 0xB6(invalid code)\n");
+			ksceDebugPrintf("-> Setting opcode to 0xB6 (invalid code)\n");
 			memset(base, 0xB6, 0x1000000);
 		}
 
@@ -429,11 +459,11 @@ int loader_main(void)
 	if(1){
 		ksceDebugPrintf("Enso loading\n");
 
-		fd = ksceIoOpen("host0:enso_second.bin", 1, 0);
+		fd = ksceIoOpen("host0:data/kbl-loader/enso_second.bin", 1, 0);
 		if(fd < 0)
-			fd = ksceIoOpen("sd0:enso_second.bin", 1, 0);
+			fd = ksceIoOpen("sd0:data/kbl-loader/enso_second.bin", 1, 0);
 		if(fd < 0)
-			fd = ksceIoOpen("ux0:data/enso_second.bin", 1, 0);
+			fd = ksceIoOpen("ux0:data/kbl-loader/enso_second.bin", 1, 0);
 
 		if(fd >= 0){
 			memset(base, 0, 0x8000);
@@ -451,15 +481,15 @@ int loader_main(void)
 	}
 
 	ksceKernelCpuDcacheWritebackRange((void *)0x51000000, 0x1000000);
-	ksceKernelCpuIcacheInvalidateRange((void *)0x51000000, 0x1000000);
+	sceKernelCpuIcacheInvalidateRange((void *)0x51000000, 0x1000000);
 
-	SceSyscon_ksceSysconResetDevice_hook_uid = taiHookFunctionExportForKernel(KERNEL_PID,
-		&SceSyscon_ksceSysconResetDevice_ref, "SceSyscon", 0x60A35F64,
-		0x8A95D35C, ksceSysconResetDevice_hook_func);
+	SceSyscon_ksceSysconResetDevice_hook_uid = taiHookFunctionExportForKernel(0x10005,
+		&SceSyscon_ksceSysconResetDevice_ref,
+		"SceSyscon", 0x60A35F64, 0x8A95D35C, ksceSysconResetDevice_hook_func);
 
-	SceSyscon_ksceSysconSendCommand_hook_uid = taiHookFunctionExportForKernel(KERNEL_PID,
-		&SceSyscon_ksceSysconSendCommand_ref, "SceSyscon", 0x60A35F64,
-		0xE26488B9, ksceSysconSendCommand_hook_func);
+	SceSyscon_ksceSysconSendCommand_hook_uid = taiHookFunctionExportForKernel(0x10005,
+		&SceSyscon_ksceSysconSendCommand_ref,
+		"SceSyscon", 0x60A35F64, 0xE26488B9, ksceSysconSendCommand_hook_func);
 
 	ksceKernelGetPaddr(&resume_ctx, &resume_ctx_paddr);
 

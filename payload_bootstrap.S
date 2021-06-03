@@ -62,9 +62,11 @@ _start:
 	movw r2, #0x200
 	bl memcpy
 
+	/*
+	 * If you not need patched reboot, just commented out this call.
+	 */
 	movw sp, #:lower16:0x44000000
 	movt sp, #:upper16:0x44000000
-
 	bl payload_bootstrap_main
 
 /*

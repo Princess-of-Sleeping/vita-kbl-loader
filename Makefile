@@ -4,7 +4,7 @@ BOOTSTRAP_OBJS = payload_bootstrap.o payload_bootstrap_main.o
 BOOTSTRAP_NSKBL_OBJS = payload_bootstrap_ns_main.o payload_bootstrap_ns_main_c.o enso/syscon.o enso/lowio.o
 
 LIBS =	-ltaihenForKernel_stub -lSceSysclibForDriver_stub -lSceSysmemForDriver_stub \
-	-lSceSysmemForKernel_stub -lSceThreadmgrForDriver_stub -lSceCpuForKernel_stub \
+	-lSceThreadmgrForDriver_stub \
 	-lSceCpuForDriver_stub -lSceUartForKernel_stub -lScePervasiveForDriver_stub \
 	-lSceSysconForDriver_stub -lScePowerForDriver_stub -lSceIofilemgrForDriver_stub \
 	-lSceSysrootForKernel_stub -ltaihenModuleUtils_stub -lSceDebugForDriver_stub -lSceSblAIMgrForDriver_stub
