@@ -10,19 +10,19 @@ A plugin that executes nskbl saved on the memory card and reboot the software.
 
 **1**. Copy the decrypted `nskbl.bin` to one of the paths.
 
-`host0:nskbl.bin` for devkit
+`host0:data/kbl-loader/nskbl.bin` for devkit
 
-`sd0:nskbl.bin` for advanced user (If installed the Manufacturing mode)
+`sd0:data/kbl-loader/nskbl.bin` for advanced user (If installed the Manufacturing mode)
 
-`ux0:data/nskbl.bin` for end user
+`ux0:data/kbl-loader/nskbl.bin` for end user
 
 **2**. If you need software reboot with enso, Copy the `enso_second.bin` to one of the paths.
 
-`host0:enso_second.bin` for devkit
+`host0:data/kbl-loader/enso_second.bin` for devkit
 
-`sd0:enso_second.bin` for advanced user (If installed the Manufacturing mode)
+`sd0:data/kbl-loader/enso_second.bin` for advanced user (If installed the Manufacturing mode)
 
-`ux0:data/enso_second.bin` for end user
+`ux0:data/kbl-loader/enso_second.bin` for end user
 
 note : We developers need to have enso_second.bin for enso and non enso. for sector redirect patch.
 
