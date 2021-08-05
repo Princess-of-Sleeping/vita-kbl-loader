@@ -121,6 +121,9 @@ static int sceKernelLoadModule(const char *path, int flags, void *option){
 		if(strncmp(path, "os0:kd/deci4p_sdrfp.skprx", 25) == 0)
 			path = "sd0:kd/deci4p_sdrfp.skprx";
 
+		if(strncmp(path, "os0:kd/sdbgsdio.skprx", 21) == 0)
+			path = "sd0:kd/sdbgsdio.skprx";
+
 		if(strncmp(path, "os0:psp2bootconfig.skprx", 24) == 0)
 			path = "sd0:psp2bootconfig.skprx";
 
