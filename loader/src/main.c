@@ -203,6 +203,7 @@ int loader_main(void){
 	uintptr_t image_paddr = 0;
 	SceUID fd, memid;
 	void *base;
+	int is_do_patch;
 
 	if(resume_stack_base == NULL){
 		memid = ksceKernelAllocMemBlock("ResumeStackBase", 0x1020D006, 0x4000, NULL);
@@ -263,6 +264,15 @@ int loader_main(void){
 	if(fd < 0)
 		fd = ksceIoOpen("ux0:data/kbl-loader/nskbl.bin", 1, 0);
 
+	is_do_patch = (fd >= 0);
+
+	if(fd < 0)
+		fd = ksceIoOpen("host0:data/kbl-loader/bootimage.bin", 1, 0);
+	if(fd < 0)
+		fd = ksceIoOpen("sd0:data/kbl-loader/bootimage.bin", 1, 0);
+	if(fd < 0)
+		fd = ksceIoOpen("ux0:data/kbl-loader/bootimage.bin", 1, 0);
+
 	if(fd >= 0){
 		ksceIoLseek(fd, 0LL, SCE_SEEK_SET);
 		ksceIoRead(fd, base, 0x1000000);
@@ -318,10 +328,12 @@ int loader_main(void){
 		opt.attr = SCE_KERNEL_ALLOC_MEMBLOCK_ATTR_HAS_PADDR;
 		opt.paddr = 0x48000000;
 
-		memid = ksceKernelAllocMemBlock("ResumeBase", 0x6020D006, 0x200000, &opt);
+		memid = ksceKernelAllocMemBlock("ResumeBase", 0x6020D006, 0x4000, &opt);
 		ksceKernelGetMemBlockBase(memid, &base);
 
 		memcpy(base, pKblParam, sizeof(*pKblParam));
+
+		*(int *)(base + sizeof(*pKblParam)) = is_do_patch;
 
 		ksceKernelFreeMemBlock(memid);
 		memid = -1;
