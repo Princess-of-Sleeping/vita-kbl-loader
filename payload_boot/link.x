@@ -7,6 +7,7 @@ SECTIONS
 {
 	. = 0x51FF0000;
 	.text : {
+		*(.text._start)
 		*(.text)
 		*(.text*)
 	}

@@ -3,11 +3,9 @@
  * from vita-libbaremetal
  */
 
-
-#define FW_360
-
 #include <inttypes.h>
-#include "nsbl.h"
+// #include "nsbl.h"
+#include "functions.h"
 #include "syscon.h"
 #include "lowio.h"
 

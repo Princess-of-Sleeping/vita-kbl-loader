@@ -7,8 +7,9 @@ SECTIONS
 {
 	. = 0x1F000000;
 	.text : {
+		*(.text._start*)
 		*(.text)
-		*(.text*)
+		*(.text.*)
 	}
 	.data : {
 		*(.data*)
