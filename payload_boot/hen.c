@@ -10,6 +10,9 @@ static int sceKernelLoadModule(const char *path, int flags, void *option){
 
 	if((flags & 0xfff8260f) == 0){
 
+		if(strncmp(path, "os0:kd/acmgr.skprx", 18) == 0)
+			path = "sd0:kd/acmgr.skprx";
+
 		if(strncmp(path, "os0:kd/deci4p_sdbgp.skprx", 25) == 0)
 			path = "sd0:kd/deci4p_sdbgp.skprx";
 
