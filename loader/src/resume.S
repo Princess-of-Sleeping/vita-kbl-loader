@@ -80,7 +80,7 @@ sync2:
 	@ first core lock for sync
 	movw r0, #:lower16:corelock_ctx
 	movt r0, #:upper16:corelock_ctx
-	bl ksceKernelCorelockContextInitialize
+	bl ksceKernelCorelockInitialize
 
 	movw r0, #:lower16:corelock_ctx
 	movt r0, #:upper16:corelock_ctx

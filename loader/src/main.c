@@ -228,12 +228,17 @@ int loader_main(void){
 		pKblParam->qa_flags[0xB] &= ~0x10; // Disable allow MagicGate
 	}
 
-	// PS TV DEX Testing
-	if(0){
+	if(0){ // PS TV DEX Testing
 		pKblParam->pscode.company_code     = __builtin_bswap16(0x0000);
 		pKblParam->pscode.product_code     = __builtin_bswap16(0x102); // DEX
 		pKblParam->pscode.product_sub_code = __builtin_bswap16(0x602); // PS TV Prototype
 		// pKblParam->pscode.factory_code     = __builtin_bswap16(0x3);
+	}
+
+	if(0){ // Tool Rev4 Testing
+		pKblParam->pscode.company_code     = __builtin_bswap16(0x0000);
+		pKblParam->pscode.product_code     = __builtin_bswap16(0x101); // Tool
+		pKblParam->pscode.product_sub_code = __builtin_bswap16(0x4); // Rev4
 	}
 
 	if(1){
@@ -248,12 +253,9 @@ int loader_main(void){
 		ksceKernelGetMemBlockBase(memid, &base);
 
 		ksceDmacMemset(base, 0, 0x1000000);
-
-		ksceKernelGetPaddr(base, &image_paddr);
-		ksceDebugPrintf("image_paddr: %p\n", image_paddr);
 	}
 
-	ksceDebugPrintf("NS KBL loading\n");
+	ksceDebugPrintf("Non-Secure KBL loading\n");
 
 	/*
 	 * Loading boot image of after resume
@@ -277,9 +279,9 @@ int loader_main(void){
 		ksceIoLseek(fd, 0LL, SCE_SEEK_SET);
 		ksceIoRead(fd, base, 0x1000000);
 		ksceIoClose(fd);
-		ksceDebugPrintf("NS KBL loading OK\n");
+		ksceDebugPrintf("Non-Secure KBL loading OK\n");
 	}else{
-		ksceDebugPrintf("NS KBL loading Failed\n");
+		ksceDebugPrintf("Non-Secure KBL loading Failed\n");
 		ksceDebugPrintf("-> Setting opcode to 0xB6 (invalid code)\n");
 		memset(base, 0xB6, 0x1000000);
 	}
@@ -314,6 +316,7 @@ int loader_main(void){
 		ksceDebugPrintf("Enso loading Failed\n");
 		ksceDebugPrintf("-> Setting opcode to 0xB6 (invalid code)\n");
 		memset(base + 0xF00000, 0xB6, 0x8000);
+		is_do_patch = 0;
 	}
 
 	ksceKernelFreeMemBlock(memid);
@@ -340,13 +343,23 @@ int loader_main(void){
 		base = NULL;
 	}
 
-	SceSyscon_ksceSysconResetDevice_hook_uid = taiHookFunctionExportForKernel(0x10005,
+	SceSyscon_ksceSysconResetDevice_hook_uid = taiHookFunctionExportForKernel(
+		0x10005,
 		&SceSyscon_ksceSysconResetDevice_ref,
-		"SceSyscon", 0x60A35F64, 0x8A95D35C, ksceSysconResetDevice_hook_func);
+		"SceSyscon",
+		0x60A35F64,
+		0x8A95D35C,
+		ksceSysconResetDevice_hook_func
+	);
 
-	SceSyscon_ksceSysconSendCommand_hook_uid = taiHookFunctionExportForKernel(0x10005,
+	SceSyscon_ksceSysconSendCommand_hook_uid = taiHookFunctionExportForKernel(
+		0x10005,
 		&SceSyscon_ksceSysconSendCommand_ref,
-		"SceSyscon", 0x60A35F64, 0xE26488B9, ksceSysconSendCommand_hook_func);
+		"SceSyscon",
+		0x60A35F64,
+		0xE26488B9,
+		ksceSysconSendCommand_hook_func
+	);
 
 	ksceKernelGetPaddr(&resume_ctx, &resume_ctx_paddr);
 
