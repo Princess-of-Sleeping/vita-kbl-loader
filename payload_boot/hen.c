@@ -8,29 +8,28 @@
 
 static int sceKernelLoadModule(const char *path, int flags, void *option){
 
+	int res;
+
 	if((flags & 0xfff8260f) == 0){
 
-		if(strncmp(path, "os0:kd/acmgr.skprx", 18) == 0)
+		if(strncmp(path, "os0:kd/acmgr.skprx", 18) == 0){
 			path = "sd0:kd/acmgr.skprx";
-
-		if(strncmp(path, "os0:kd/deci4p_sdbgp.skprx", 25) == 0)
+		}else if(strncmp(path, "os0:kd/deci4p_sdbgp.skprx", 25) == 0){
 			path = "sd0:kd/deci4p_sdbgp.skprx";
-
-		if(strncmp(path, "os0:kd/deci4p_sdrfp.skprx", 25) == 0)
+		}else if(strncmp(path, "os0:kd/deci4p_sdrfp.skprx", 25) == 0){
 			path = "sd0:kd/deci4p_sdrfp.skprx";
-
-		if(strncmp(path, "os0:kd/sdbgsdio.skprx", 21) == 0)
+		}else if(strncmp(path, "os0:kd/sdbgsdio.skprx", 21) == 0){
 			path = "sd0:kd/sdbgsdio.skprx";
-
-		if(strncmp(path, "os0:psp2bootconfig.skprx", 24) == 0)
+		}else if(strncmp(path, "os0:kd/intrmgr.skprx", 21) == 0){
+			path = "sd0:kd/intrmgr.skprx";
+		}else if(strncmp(path, "os0:psp2bootconfig.skprx", 24) == 0){
 			path = "sd0:psp2bootconfig.skprx";
-
-		int res;
+		}
 
 		res = sceKernelLoadModuleForPidInternal(0x10005, path, flags, option);
-
-		if(res < 0)
+		if(res < 0){
 			sceKernelPrintf("%s res:0x%X %s 0x%X\n", __FUNCTION__, res, path, flags);
+		}
 
 		return res;
 	}
