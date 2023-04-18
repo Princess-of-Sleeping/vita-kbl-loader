@@ -6,8 +6,8 @@
 set NSKBL_sceSdStandaloneInit_SfatInit 0x510012A8
 
 set NSKBL_auth_module_sceSblAuthMgrAuthHeader 0x510188E0
-set NSKBL_auth_module_sceSblAuthMgrSetupAuthSegment 0x51016F94
-set NSKBL_auth_module_sceSblAuthMgrAuthSegment 0x51016FD0
+set NSKBL_auth_module_sceSblAuthMgrSetupAuthSegment 0x510188F0
+set NSKBL_auth_module_sceSblAuthMgrAuthSegment 0x51018900
 
 set NSKBL_sceKernelLoadModule_loadModuleCommon 0x51017A86
 
