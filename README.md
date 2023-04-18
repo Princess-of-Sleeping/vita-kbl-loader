@@ -30,6 +30,21 @@ note : We developers need to have enso_second.bin for enso and non enso. for sec
 
 # Development note
 
+- /loader
+
+  main bootimage loader. Also setup payload_boot and payload_scratchpad in the bootimage area.
+  It also contains code to jump to payload_scratchpad on resume.
+
+- /payload_scratchpad
+
+  Disable mmu and clear CPU cache.
+  Then call payload_boot. After returning from payload_boot, copy the bootimage reset vector to address 0 and jump there.
+
+- /payload_boot
+
+  Patch the bootimage first and then immediately return to Invoke point.
+  Patches here include applying HEN to the bootimage and booting from gcsd.
+
 NSKBL has a different offset for each fw, so adjustment is required when using it with 3.65 etc.
 
 Like enso 3.60 and 3.65.
