@@ -411,7 +411,7 @@ static int sceKernelBootLoadModules_patch(const SceNskblModuleInfo2 *pList, SceU
 					}
 
 					*(const char **)(text + sysstatemgr_sd0_path) = "sd0:/psp2config.txt";
-					*(const char **)(text + sysstatemgr_ux0_path) = "ur0:/tai/bootconfig.txt";
+					*(const char **)(text + sysstatemgr_ux0_path) = "ur0:/tai/boot_config.txt";
 
 					sceKernelSetDACR(dacr);
 
