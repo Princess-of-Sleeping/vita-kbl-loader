@@ -29,24 +29,9 @@ reset_main:
 	movw ip, #0x16A
 	smc #0
 
-	@ Copy the kblparam
-	movw r0, #:lower16:SCE_NS_KBL_PARAM_BASE
-	movt r0, #:upper16:SCE_NS_KBL_PARAM_BASE
-	movw r1, #:lower16:0x48000000
-	movt r1, #:upper16:0x48000000
-	movw r2, #0x200
-	bl memcpy2
-
-	movw r1, #:lower16:0x48000000
-	movt r1, #:upper16:0x48000000
-	ldr r1, [r1, #0x200]
-	cmp r1, #1
-	bne copy_reset_vector
-
 	@ If you not need patched reboot, just commented out this call.
 	bl payload_bootstrap_main
 
-copy_reset_vector:
 	@ Copy reset vector
 	mov r0, #0x1F000000
 	mov r1, #0x51000000
@@ -65,26 +50,6 @@ core_nzero_point:
 jump2reset:
 	pop {r3, r4}
 	movs r0, #0
-	bx r0
-
-	.global log_hook_tmp
-	.type   log_hook_tmp, %function
-log_hook_tmp:
-
-	movw r0, #:lower16:0x51FF0000
-	movt r0, #:upper16:0x51FF0000
-
-	blx r0
-
-	@ bl log_hook_main
-
-	movw r1, #0x3b18
-	movw r2, #0x3858
-	movt r1, #0x5102
-
-	movw r0, #:lower16:0x51000C33
-	movt r0, #:upper16:0x51000C33
-
 	bx r0
 
 	.data

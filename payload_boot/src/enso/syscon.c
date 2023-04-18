@@ -5,9 +5,14 @@
 
 #include <inttypes.h>
 // #include "nsbl.h"
-#include "functions.h"
+// #include "functions.h"
 #include "syscon.h"
 #include "lowio.h"
+
+
+extern void *(* memset)(void *dst, int ch, int n);
+extern void *(* memcpy)(void *dst, const void *src, int n);
+
 
 #define SYSCON_TX_CMD_LO       0
 #define SYSCON_TX_CMD_HI       1

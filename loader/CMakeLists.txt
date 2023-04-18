@@ -30,6 +30,7 @@ add_custom_command(OUTPUT payload_boot.c
 add_executable(${PROJECT_NAME}
   src/main.c
   src/resume.s
+  src/corelock.s
   payload_scratchpad.c
   payload_boot.c
 )
@@ -39,7 +40,7 @@ add_dependencies(${PROJECT_NAME} payload_boot_binary)
 
 target_link_libraries(${PROJECT_NAME}
   SceCpuForDriver_stub
-  SceCpuForKernel_stub
+  # SceCpuForKernel_stub
   SceDebugForDriver_stub
   SceDmacmgrForDriver_stub
   SceIofilemgrForDriver_stub
@@ -49,6 +50,7 @@ target_link_libraries(${PROJECT_NAME}
   SceSysmemForDriver_stub
   ScePowerForDriver_stub
   SceThreadmgrForDriver_stub
+  SceKernelUtilsForDriver_stub
   taihenForKernel_stub
 )
 

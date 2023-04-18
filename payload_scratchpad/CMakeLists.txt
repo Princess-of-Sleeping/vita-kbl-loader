@@ -19,7 +19,7 @@ add_executable(payload_scratchpad
   reset_main.S
   reset.S
   main.c
-  ../payload_boot/arm_opcode.c
+  ../kbl_loader.c
 )
 
 target_link_libraries(payload_scratchpad

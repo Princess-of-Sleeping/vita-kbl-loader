@@ -1,7 +1,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
-#include "../payload_boot/arm_opcode.h"
+#include "../kbl_loader.h"
 
 void wait_time(int usec){
 
@@ -109,23 +109,26 @@ void *memcpy2(void *dst, const void *src, int len){
 	return end - len;
 }
 
-int log_hook_tmp(void);
+
+// NSKBL doesn't mmu mapping the scratchpad, so you can't put enso setup here.
+
 
 int payload_bootstrap_main(void){
 
-	uintptr_t patch_func;
-	int opcode[3];
+	int res;
+	void *SCE_NS_KBL_PARAM_BASE;
 
-	patch_func = (uintptr_t)log_hook_tmp;
+	KblLoaderArgs *argp = (KblLoaderArgs *)VITA_KBL_LOADER_ARGS_BASE;
 
-	get_movw_opcode(&opcode[0], 1, (uint16_t)(patch_func));
-	get_movt_opcode(&opcode[1], 1, (uint16_t)(patch_func >> 16));
+	res = kbl_dlsym("SCE_NS_KBL_PARAM_BASE", &SCE_NS_KBL_PARAM_BASE);
+	if(res >= 0){
+		memcpy2(SCE_NS_KBL_PARAM_BASE, &(argp->kbl_param), 0x200);
+	}
 
-	opcode[2] = 0xBF004788; // blx r1, nop
-
-	memcpy2((void *)0x51000C26, opcode, sizeof(opcode));
-
-	// SceModuleExports *pExportInfo = (SceModuleExports *)0x51027550;
+	// Invoke NSKBL patcher set upper
+	if(*(int *)(0x51FF0000) != 0xB6B6B6B6){
+		((int (*)())(0x51FF0000))();
+	}
 
 	return 0;
 }

@@ -5,11 +5,14 @@
 #include <psp2kern/kernel/sysmem.h>
 #include <psp2kern/kernel/sysclib.h>
 #include <psp2kern/kernel/sysroot.h>
+#include <psp2kern/kernel/utils.h>
 #include <psp2kern/io/fcntl.h>
 #include <psp2kern/power.h>
 #include <psp2kern/sblaimgr.h>
 #include <psp2kern/syscon.h>
 #include <taihen.h>
+#include "../../kbl_loader.h"
+
 
 typedef struct SceSysconResumeContext {
 	SceSize size;
@@ -197,13 +200,278 @@ void dipsw_set(void *pDipsw, SceUInt8 bit){
 	*(SceUInt32 *)(pDipsw + ((bit >> 5) << 2)) |= 1 << (bit & 0x1F);
 }
 
-int loader_main(void){
+
+void *dlsym_base;
+SceUID dlsym_heapid = -1;
+
+
+
+DLSymVariable *g_dlsym_root;
+
+int dlsym_register(const char *name, uint32_t value){
+
+	if(dlsym_heapid < 0){
+		return 0;
+	}
+
+	DLSymVariable *dlsym;
+
+	dlsym = ksceKernelAllocHeapMemory(dlsym_heapid, sizeof(*dlsym));
+	if(dlsym == NULL){
+		return -1;
+	}
+
+	int namelen = strlen(name);
+
+	char *new_name = ksceKernelAllocHeapMemory(dlsym_heapid, namelen + 1);
+	if(new_name == NULL){
+		ksceKernelFreeHeapMemory(dlsym_heapid, dlsym);
+		return -1;
+	}
+
+	new_name[namelen] = 0;
+	memcpy(new_name, name, namelen);
+
+	dlsym->next = g_dlsym_root;
+	dlsym->name = new_name;
+	dlsym->value = value;
+
+	g_dlsym_root = dlsym;
+
+	return 0;
+}
+
+int dlsym_relocate(void){
+
+	DLSymVariable *dlsym = g_dlsym_root, *next;
+
+	while(dlsym != NULL){
+		next = dlsym->next;
+		ksceKernelVAtoPA(dlsym->next, (SceUIntPtr *)&(dlsym->next));
+		ksceKernelVAtoPA(dlsym->name, (SceUIntPtr *)&(dlsym->name));
+		dlsym = next;
+	}
+
+	return 0;
+}
+
+int parse_line(char *in, char **cont, char **next){
+
+	while(*in != 0 && (*in == ' ' || *in == '\t')){
+		in++;
+	}
+
+	if(*in == 0){
+		return -1;
+	}
+
+	char *name_end = strchr(in, ' ');
+	if(name_end == NULL){
+		name_end = strchr(in, '\t');
+	}
+
+	if(name_end == NULL){
+		name_end = strchr(in, 0);
+	}
+
+	char *new_name = ksceKernelAllocHeapMemory(0x1000B, (name_end - in) + 1);
+	if(new_name == NULL){
+		return -1;
+	}
+
+	new_name[name_end - in] = 0;
+	memcpy(new_name, in, name_end - in);
+
+	*cont = new_name;
+
+	if(*name_end == 0){
+		*next = NULL;
+	}else{
+		*next = name_end;
+	}
+
+	// ksceKernelPrintf("new_name : \"%s\"\n", new_name);
+	// ksceKernelFreeHeapMemory(0x1000B, new_name);
+
+	return 0;
+}
+
+int load_config(const char *script, const char *script_end){
+
+	const char *current_script = script;
+
+	while(current_script != script_end){
+
+		const char *next = memchr(current_script, '\n', script_end - current_script);
+		if(next == NULL){
+			next = script_end - 1;
+		}
+
+		int ch = *current_script;
+		if(ch != '#' && ch != '\n'){
+			int len = next - current_script + 1;
+			char *line = ksceKernelAllocHeapMemory(0x1000B, len + 1);
+			line[len] = 0;
+			memcpy(line, current_script, len);
+
+			char *cmd, *n, *x, *y;
+
+			parse_line(line, &cmd, &n);
+
+			if(strncmp(cmd, "set", 3) == 0 && len > 4){
+
+				parse_line(n, &x, &n);
+
+				if(n != NULL){
+					parse_line(n, &y, &n);
+
+					dlsym_register(x, strtol(y, NULL, 16));
+					ksceKernelFreeHeapMemory(0x1000B, y);
+				}
+
+				ksceKernelFreeHeapMemory(0x1000B, x);
+
+			}else if(strncmp(cmd, "include", 7) == 0 && len > 8){
+			}
+
+			ksceKernelFreeHeapMemory(0x1000B, cmd);
+			ksceKernelFreeHeapMemory(0x1000B, line);
+		}
+
+		current_script = &(next[1]);
+	}
+
+	return 0;
+}
+
+int load_config_by_path(const char *path){
+
+	int res;
+	SceUID fd, memid;
+	SceOff offset;
+	void *base;
+
+	fd = ksceIoOpen(path, SCE_O_RDONLY, 0);
+	if(fd < 0){
+		ksceKernelPrintf("sceIoOpen 0x%X (%s)\n", fd, path);
+		return fd;
+	}
+
+	memid = -1;
+
+	do {
+		offset = ksceIoLseek(fd, 0LL, SCE_SEEK_END);
+		if(offset < 0){
+			ksceKernelPrintf("sceIoLseek 0x%X\n", (int)offset);
+			res = (int)offset;
+			break;
+		}
+
+		res = ksceKernelAllocMemBlock("ConfigBuffer", 0x1020D006, ((int)offset + 0xFFF) & ~0xFFF, NULL);
+		if(res < 0){
+			ksceKernelPrintf("sceKernelAllocMemBlock 0x%X\n", res);
+			break;
+		}
+
+		memid = res;
+
+		res = ksceKernelGetMemBlockBase(memid, &base);
+		if(res < 0){
+			ksceKernelPrintf("sceKernelGetMemBlockBase 0x%X\n", res);
+			break;
+		}
+
+		ksceIoLseek(fd, 0LL, SCE_SEEK_SET);
+
+		res = ksceIoRead(fd, base, (int)offset);
+		if(res < 0){
+			ksceKernelPrintf("sceIoRead 0x%X\n", res);
+			break;
+		}
+
+		if(res != (int)offset){
+			ksceKernelPrintf("sceIoRead 0x%X != 0x%X\n", res, (int)offset);
+			res = -1;
+			break;
+		}
+
+		ksceIoClose(fd);
+		fd = -1;
+
+		res = load_config(base, base + res);
+		if(res < 0){
+			ksceKernelPrintf("load_config 0x%X\n", res);
+			break;
+		}
+
+		res = 0;
+	} while(0);
+
+	if(memid >= 0){
+		ksceKernelFreeMemBlock(memid);
+	}
+
+	if(fd >= 0){
+		ksceIoClose(fd);
+	}
+
+	return res;
+}
+
+int setup_dlsym_ram(void){
+
+	int res;
+	SceUID memid;
+	SceKernelAllocMemBlockKernelOpt opt;
+	SceKernelHeapCreateOpt heap_opt;
+
+	memset(&opt, 0, sizeof(opt));
+	opt.size = sizeof(opt);
+	opt.attr = SCE_KERNEL_ALLOC_MEMBLOCK_ATTR_HAS_PADDR;
+	opt.paddr = VITA_KBL_LOADER_DLSYM_BASE;
+
+	res = ksceKernelAllocMemBlock("dlsym", 0x6020D006, SCE_KERNEL_1MiB, &opt);
+	if(res < 0){
+		ksceKernelPrintf("sceKernelAllocMemBlock 0x%X\n", res);
+		return res;
+	}
+
+	memid = res;
+
+	res = ksceKernelGetMemBlockBase(memid, &dlsym_base);
+	if(res < 0){
+		ksceKernelPrintf("sceKernelGetMemBlockBase 0x%X\n", res);
+		return res;
+	}
+
+	memset(&heap_opt, 0, sizeof(heap_opt));
+	heap_opt.size = sizeof(heap_opt);
+	heap_opt.attr = 0x200;
+	heap_opt.field_C = memid;
+
+	res = ksceKernelCreateHeap("dlsym_heap", SCE_KERNEL_1MiB, &heap_opt);
+	if(res < 0){
+		ksceKernelPrintf("sceKernelCreateHeap 0x%X\n", res);
+		return res;
+	}
+
+	dlsym_heapid = res;
+
+	return 0;
+}
+
+/*
+ * 0x1F000000-0x1F007FFF : scratchpad payload
+ * 0x4C000000-0x4C003FFF : SceKblParam and payload args
+ * 0x51000000-0x51FFFFFF : NSKBL and HEN payload
+ */
+
+int loader_main(SceSize arg_len, void *argp){
 
 	SceKblParam *pKblParam;
-	uintptr_t image_paddr = 0;
 	SceUID fd, memid;
 	void *base;
-	int is_do_patch;
+	int is_do_patch, res;
 
 	if(resume_stack_base == NULL){
 		memid = ksceKernelAllocMemBlock("ResumeStackBase", 0x1020D006, 0x4000, NULL);
@@ -213,6 +481,8 @@ int loader_main(void){
 		ksceKernelGetMemBlockBase(memid, &resume_stack_base);
 	}
 
+	setup_dlsym_ram();
+
 	/*
 	 * Copy the sysroot buffer to physically contiguous memory.
 	 */
@@ -221,24 +491,17 @@ int loader_main(void){
 		return -1;
 
 	if(ksceSblAimgrIsTool() != 0){
+		// dipsw_set(&(pKblParam->dipsw), 201); // Assert level to 1
+		// dipsw_set(&(pKblParam->dipsw), 202); // Assert level to 2
+		// dipsw_set(&(pKblParam->dipsw), 204); // Debug level to 1
+		// dipsw_set(&(pKblParam->dipsw), 205); // Debug level to 2
+		// dipsw_set(&(pKblParam->dipsw), 206); // Allow syscall debug
+		// dipsw_set(&(pKblParam->dipsw), 224); // Allow system debug thread
 		dipsw_set(&(pKblParam->dipsw), 0xD7); // Allow remote
 		pKblParam->dipsw.aslr_seed = 0; // Disable ASLR
 
 		memset(pKblParam->qa_flags, 0xFF, 0x10);
 		pKblParam->qa_flags[0xB] &= ~0x10; // Disable allow MagicGate
-	}
-
-	if(0){ // PS TV DEX Testing
-		pKblParam->pscode.company_code     = __builtin_bswap16(0x0000);
-		pKblParam->pscode.product_code     = __builtin_bswap16(0x102); // DEX
-		pKblParam->pscode.product_sub_code = __builtin_bswap16(0x602); // PS TV Prototype
-		// pKblParam->pscode.factory_code     = __builtin_bswap16(0x3);
-	}
-
-	if(0){ // Tool Rev4 Testing
-		pKblParam->pscode.company_code     = __builtin_bswap16(0x0000);
-		pKblParam->pscode.product_code     = __builtin_bswap16(0x101); // Tool
-		pKblParam->pscode.product_sub_code = __builtin_bswap16(0x4); // Rev4
 	}
 
 	if(1){
@@ -256,6 +519,12 @@ int loader_main(void){
 	}
 
 	ksceDebugPrintf("Non-Secure KBL loading\n");
+
+	SceUInt8 bootimage_hash[0x20];
+
+	memset(bootimage_hash, 0xFF, sizeof(bootimage_hash));
+
+	load_config_by_path("host0:data/kbl-loader/config.txt");
 
 	/*
 	 * Loading boot image of after resume
@@ -277,8 +546,13 @@ int loader_main(void){
 
 	if(fd >= 0){
 		ksceIoLseek(fd, 0LL, SCE_SEEK_SET);
-		ksceIoRead(fd, base, 0x1000000);
+		res = ksceIoRead(fd, base, 0x1000000);
 		ksceIoClose(fd);
+
+		if(res > 0){
+			ksceSha256Digest(base, res, bootimage_hash);
+		}
+
 		ksceDebugPrintf("Non-Secure KBL loading OK\n");
 	}else{
 		ksceDebugPrintf("Non-Secure KBL loading Failed\n");
@@ -329,14 +603,22 @@ int loader_main(void){
 
 		opt.size = sizeof(opt);
 		opt.attr = SCE_KERNEL_ALLOC_MEMBLOCK_ATTR_HAS_PADDR;
-		opt.paddr = 0x48000000;
+		opt.paddr = VITA_KBL_LOADER_ARGS_BASE;
 
 		memid = ksceKernelAllocMemBlock("ResumeBase", 0x6020D006, 0x4000, &opt);
 		ksceKernelGetMemBlockBase(memid, &base);
 
-		memcpy(base, pKblParam, sizeof(*pKblParam));
+		KblLoaderArgs *argp = (KblLoaderArgs *)base;
 
-		*(int *)(base + sizeof(*pKblParam)) = is_do_patch;
+		memcpy(&(argp->kbl_param), pKblParam, sizeof(*pKblParam));
+
+		argp->is_do_patch = is_do_patch;
+		memcpy(&(argp->hash), bootimage_hash, sizeof(bootimage_hash));
+
+		if(g_dlsym_root != NULL){
+			ksceKernelVAtoPA(g_dlsym_root, (SceUIntPtr *)&(argp->dlsym_root));
+			dlsym_relocate();
+		}
 
 		ksceKernelFreeMemBlock(memid);
 		memid = -1;
@@ -371,7 +653,17 @@ int loader_main(void){
 void _start() __attribute__((weak, alias ("module_start")));
 int module_start(SceSize argc, const void *args){
 
-	loader_main();
+	SceUID thid;
+
+	do {
+		thid = ksceKernelCreateThread("KblLoadThread", loader_main, 0x78, 0x4000, 0, 0, NULL);
+		if(thid < 0){
+			SCE_KERNEL_PRINTF_LEVEL(0, "sceKernelCreateThread 0x%X\n", thid);
+			break;
+		}
+
+		ksceKernelStartThread(thid, 0, NULL);
+	} while(0);
 
 	return SCE_KERNEL_START_SUCCESS;
 }

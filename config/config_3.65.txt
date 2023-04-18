@@ -1,0 +1,65 @@
+#
+# 3.650.011
+#
+
+# patch offsets
+set NSKBL_sceSdStandaloneInit_SfatInit 0x510012A8
+
+set NSKBL_auth_module_sceSblAuthMgrAuthHeader 0x510188E0
+set NSKBL_auth_module_sceSblAuthMgrSetupAuthSegment 0x51016F94
+set NSKBL_auth_module_sceSblAuthMgrAuthSegment 0x51016FD0
+
+set NSKBL_sceKernelLoadModule_loadModuleCommon 0x51017A86
+
+# 0x8990 + 0x33B
+set display_ps_logo        0x8CCB
+
+set sysstatemgr_is_allow_plaintext 0xE28
+set sysstatemgr_manu_path 0x8C
+set sysstatemgr_host0_path 0x144
+set sysstatemgr_sd0_path 0x148
+set sysstatemgr_ux0_path 0x14C
+
+# my defines
+set MODULE_LOAD_SD0_REDIRECT 0
+
+# NSKBL defines
+set SCE_NS_KBL_PARAM_BASE 0x40200100
+
+set ppKBParam 0x51030410
+
+set sceGUIDReleaseObject     0x51004B21
+set sceKernelGetMemBlockBase 0x510057E1
+set sceKernelAllocMemBlock   0x51007161
+set sceKernelRemapBlock      0x51007171
+
+set sceKernelAllocHeapMemory 0x5100DDD5
+set sceKernelFreeHeapMemory  0x5100DDE1
+
+set sceKernelPrintf 0x51013919
+
+set memset       0x51013C41
+set memcpy       0x51013BC1
+set strncmp      0x51013CA0
+set snprintf     0x510145C9
+set clean_dcache 0x51014D41
+set flush_icache 0x51014691
+set sceKernelL1IcacheInvalidateEntireAllCore 0x51014691
+set sceKernelDcacheCleanRange                0x51014D41
+
+set sceKernelMMUMapSections            0x51015249
+set sceKernelMMUUnmapSectionsWithFlags 0x510152B1
+
+set sceKernelReferModule 0x51017785
+
+set sceSdifGetSdContextGlobal 0x5101ABF9
+set sceSdifReadSectorMmc      0x5101C7D1
+set sceSdInit                 0x5101DA29
+set sceSdReadSector           0x5101E879
+
+set enso_patch 0x510202CE
+
+set SceKblForKernel 0x510276C8
+
+set sdif_init_param_emmc 0x51028010
+set sdif_init_param_gcsd 0x51028018
