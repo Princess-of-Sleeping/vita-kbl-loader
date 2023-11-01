@@ -3,6 +3,7 @@
 #include <psp2kern/kernel/threadmgr.h>
 #include <psp2kern/kernel/dmac.h>
 #include <psp2kern/kernel/sysmem.h>
+#include <psp2kern/kernel/debug.h>
 #include <psp2kern/kernel/sysclib.h>
 #include <psp2kern/kernel/sysroot.h>
 #include <psp2kern/kernel/utils.h>
@@ -237,6 +238,8 @@ int dlsym_register(const char *name, uint32_t value){
 	dlsym->value = value;
 
 	g_dlsym_root = dlsym;
+
+	// ksceKernelPrintf("dlsym registered: %s (0x%08X)\n", name, value);
 
 	return 0;
 }
@@ -518,7 +521,7 @@ int loader_main(SceSize arg_len, void *argp){
 		ksceDmacMemset(base, 0, 0x1000000);
 	}
 
-	ksceDebugPrintf("Non-Secure KBL loading\n");
+	ksceKernelPrintf("Non-Secure KBL loading\n");
 
 	SceUInt8 bootimage_hash[0x20];
 
@@ -553,23 +556,28 @@ int loader_main(SceSize arg_len, void *argp){
 			ksceSha256Digest(base, res, bootimage_hash);
 		}
 
-		ksceDebugPrintf("Non-Secure KBL loading OK\n");
+		ksceKernelPrintf("Non-Secure KBL loading OK\n");
 	}else{
-		ksceDebugPrintf("Non-Secure KBL loading Failed\n");
-		ksceDebugPrintf("-> Setting opcode to 0xB6 (invalid code)\n");
+		ksceKernelPrintf("Non-Secure KBL loading Failed\n");
+		ksceKernelPrintf("-> Setting opcode to 0xB6 (invalid code)\n");
 		memset(base, 0xB6, 0x1000000);
 	}
+
+	ksceKernelPrintf("Boot hook loading\n");
 
 	/*
 	 * Copy boot hook image
 	 */
 	if(boot_data_len <= 0x10000){
 		memcpy(base + 0xFF0000, boot_data, boot_data_len);
+		ksceKernelPrintf("Boot hook loading OK\n");
 	}else{
 		memset(base + 0xFF0000, 0xB6, 0x10000);
+		ksceKernelPrintf("Boot hook loading Failed\n");
+		ksceKernelPrintf("-> boot_data_len 0x%X\n", boot_data_len);
 	}
 
-	ksceDebugPrintf("Enso loading\n");
+	ksceKernelPrintf("Enso loading\n");
 
 	/*
 	 * Loading Enso
@@ -585,10 +593,10 @@ int loader_main(SceSize arg_len, void *argp){
 		ksceIoLseek(fd, 0LL, SCE_SEEK_SET);
 		ksceIoRead(fd, base + 0xF00000, 0x8000);
 		ksceIoClose(fd);
-		ksceDebugPrintf("Enso loading OK\n");
+		ksceKernelPrintf("Enso loading OK\n");
 	}else{
-		ksceDebugPrintf("Enso loading Failed\n");
-		ksceDebugPrintf("-> Setting opcode to 0xB6 (invalid code)\n");
+		ksceKernelPrintf("Enso loading Failed\n");
+		ksceKernelPrintf("-> Setting opcode to 0xB6 (invalid code)\n");
 		memset(base + 0xF00000, 0xB6, 0x8000);
 		is_do_patch = 0;
 	}

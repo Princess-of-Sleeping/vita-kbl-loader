@@ -29,7 +29,7 @@ ksceKernelCorelockLock:
 	push       {r3, r4, r5, lr}
 	mov        r4, r0
 	mov        r5, r1
-	blx        ksceKernelCpuGetCpuId
+	blx        ksceKernelCpuId
 	dmb        sy
 	cmp        r0, r5
 	beq        LAB_81022bb0
@@ -63,7 +63,7 @@ LAB_81022bb0:
 ksceKernelCorelockUnlock:
 	push       {r4, r5, r6, lr}
 	mov        r5, r0
-	blx        ksceKernelCpuGetCpuId
+	blx        ksceKernelCpuId
 	adds       r0, #0x1
 	cmp        r0, #0x4
 	ite        ne
@@ -74,7 +74,7 @@ ksceKernelCorelockUnlock:
 	strh       r0, [r5, #0x6]
 	movs       r1, #0x1
 	mov        r0, r4
-	blx        ksceKernelCpuAtomicGetAndSub16
+	blx        ksceKernelAtomicGetAndSub16
 	mov        r6, r0
 	mov        r0, r5
 	blx        ksceKernelSpinlockLowUnlock

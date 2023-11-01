@@ -9,8 +9,6 @@
 	.fpu neon
 	.arch_extension sec
 
-	.set SCE_NS_KBL_PARAM_BASE, 0x40200100
-
 	.globl reset_main
 	.type  reset_main, %function
 reset_main:
